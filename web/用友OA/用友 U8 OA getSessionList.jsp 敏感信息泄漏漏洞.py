@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 import requests
 import urllib3
 from lxml import etree
+from concurrent.futures import ThreadPoolExecutor
 
 urllib3.disable_warnings()
 
@@ -35,14 +36,22 @@ def cmdline(known=False):
 
     if opt.urlfile:
         urls = open(opt.urlfile).readlines()
-        for url in urls:
-            poc_func(url.replace("\n", ""))
+
+        with ThreadPoolExecutor(50) as t:
+            for url in urls:
+                t.submit(poc_func, url=url.replace("\n", ""))
     else:
         file_poc_func(opt.url)
 
 
 def file_poc_func(url):
     print(url)
+
+
+def save_result(str):
+    with open('result.txt', 'a+') as f:
+        f.write(str)
+    f.close()
 
 
 def poc_func(url):
@@ -58,7 +67,8 @@ def poc_func(url):
         result = requests.get(poc_url, verify=False, timeout=5)
         # 解析结果并返回
         if result.status_code == 200 and len(result.text) > 80:
-            print(url+"存在漏洞\n"+"paylad:"+poc_url)
+            print(url + "存在漏洞\n" + "paylad:" + poc_url)
+            save_result(url + "存在漏洞\n" + "paylad:" + poc_url)
             html = etree.HTML(result.text)
             id = html.xpath('/html/body/sessionlist/session')
             for i in id:
